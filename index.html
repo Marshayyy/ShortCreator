@@ -336,6 +336,7 @@
     .status-dot.live { animation: none; }
   }
 </style>
+<script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 <div class="wrap">
@@ -366,8 +367,23 @@
       <h2>Scene Timeline</h2>
       <span class="stepnum">02</span>
     </div>
+
+    <label class="field-label">AI Image Style</label>
+    <select id="imageStyleSelect" style="margin-bottom:10px;">
+      <option value="dark cinematic space photography, dramatic lighting, deep shadows, moody atmosphere, ultra realistic, high detail">Dark & Moody (Fortify Daily default)</option>
+      <option value="vibrant colorful space art, nebula colors, ethereal glow, ultra realistic, high detail">Vibrant Nebula</option>
+      <option value="realistic NASA telescope photography style, scientific, high detail, true color">NASA Photo-Realistic</option>
+      <option value="minimalist space illustration, flat design, bold shapes, limited color palette">Minimalist Illustration</option>
+    </select>
+
+    <div class="btn-row" style="margin-bottom:12px;">
+      <button class="btn-primary" id="autoFetchBtn">Generate AI Images for All Scenes</button>
+    </div>
+    <div class="status-line" id="fetchStatus" style="display:none; margin-bottom:10px;">
+      <span class="status-dot"></span><span id="fetchStatusText"></span>
+    </div>
     <div class="scene-strip" id="sceneStrip"></div>
-    <div class="hint">Each scene gets its own procedural space backdrop (nebula / starfield / planet, randomized) and a slow zoom animation. Re-run "Build Scenes" anytime after editing the script above.</div>
+    <div class="hint">Each scene defaults to a procedural space backdrop with a slow zoom animation. Tap <strong>Generate AI Images for All Scenes</strong> to create a matching AI image per scene (powered by Puter.js — free, may ask you to sign in with a free Puter account on first use), or tap <strong>Upload Image</strong> on any scene to use your own photo. Re-run "Build Scenes" anytime after editing the script above (note: this resets images).</div>
   </div>
 
   <!-- STEP 3: VOICE -->
@@ -376,25 +392,27 @@
       <h2>Voiceover</h2>
       <span class="stepnum">03</span>
     </div>
-    <label class="field-label">ElevenLabs API Key</label>
-    <input type="password" id="elevenKey" placeholder="sk_...">
-    <div class="hint">Stored only in this browser tab for this session — never sent anywhere except api.elevenlabs.io. <button class="key-toggle" id="toggleKeyVis">show key</button></div>
-
-    <div style="height:12px;"></div>
+    <div class="hint" style="margin-bottom:12px;">Uses your device's built-in voices — free, no key, no account. Quality varies by phone/browser, but it's instant.</div>
 
     <label class="field-label">Voice</label>
     <select id="voiceSelect">
-      <option value="21m00Tcm4TlvDq8ikWAM">Rachel — calm, narrative</option>
-      <option value="ErXwobaYiN019PkySvjV">Antoni — deep, documentary</option>
-      <option value="VR6AewLTigWG4xSOukaG">Arnold — punchy, energetic</option>
-      <option value="pNInz6obpgDQGcFmaJgB">Adam — neutral male</option>
-      <option value="EXAVITQu4vr4xnSDxMaL">Bella — warm female</option>
+      <option value="">Loading voices…</option>
     </select>
-    <div class="hint">Or paste a custom Voice ID from your ElevenLabs library:</div>
-    <input type="text" id="customVoiceId" placeholder="Custom voice ID (optional)" style="margin-top:6px;">
+
+    <div class="row" style="margin-top:12px;">
+      <div>
+        <label class="field-label">Rate</label>
+        <input type="range" id="rateSlider" min="0.7" max="1.3" step="0.05" value="1" style="width:100%;">
+      </div>
+      <div>
+        <label class="field-label">Pitch</label>
+        <input type="range" id="pitchSlider" min="0.7" max="1.3" step="0.05" value="1" style="width:100%;">
+      </div>
+    </div>
 
     <div class="btn-row">
       <button class="btn-primary" id="generateVoiceBtn">Generate Voiceover</button>
+      <button class="btn-ghost" id="testVoiceBtn">Test Voice</button>
       <button class="btn-ghost" id="skipVoiceBtn">Skip voice — text only</button>
     </div>
     <div class="status-line" id="voiceStatus" style="margin-top:12px; display:none;">
@@ -424,7 +442,7 @@
       <button class="btn-ghost" id="previewBtn">Preview (no recording)</button>
     </div>
     <div id="downloadArea" style="margin-top:14px;"></div>
-    <div class="hint" style="margin-top:10px;">Renders as WebM (VP9 + Opus audio). Most editors and upload flows accept WebM directly; if YouTube rejects it, drop it into CapCut/Premiere for a 5-second MP4 re-export.</div>
+    <div class="hint" style="margin-top:10px;">Renders as WebM video. Browser text-to-speech can't be captured into the file directly — see the note after rendering for how to add the voice track.</div>
   </div>
 
   <div class="empty-note" id="emptyNote">Start by writing your script above, then click Build Scenes.</div>
@@ -498,27 +516,169 @@ function renderSceneStrip() {
     const chip = document.createElement('div');
     chip.className = 'scene-chip';
     const pal = PALETTES[scene.paletteIdx];
+    const thumbHtml = scene.customImageSrc
+      ? `<img src="${scene.customImageSrc}" style="width:100%;height:48px;object-fit:cover;border-radius:5px;margin-top:6px;">`
+      : '';
     chip.innerHTML = `
       <div class="palette-dot" style="background:${pal.glow.replace('0.3', '1').replace('0.35','1').replace('0.28','1').replace('0.32','1')}"></div>
       <div class="idx">SCENE ${String(i+1).padStart(2,'0')}</div>
       <div class="txt">${scene.text}</div>
-      <div class="dur">${audioDurations[i].toFixed(1)}s · ${pal.name}</div>
+      <div class="dur">${audioDurations[i].toFixed(1)}s · ${scene.customImageSrc ? 'custom image' : pal.name}</div>
+      ${thumbHtml}
+      <input type="file" accept="image/*" id="imgUpload-${i}" style="display:none;">
+      <button class="btn-ghost" style="width:100%;margin-top:6px;font-size:10.5px;padding:6px;" onclick="document.getElementById('imgUpload-${i}').click()">${scene.customImageSrc ? 'Replace Image' : 'Upload Image'}</button>
     `;
     strip.appendChild(chip);
+
+    const fileInput = chip.querySelector(`#imgUpload-${i}`);
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        const img = new Image();
+        img.onload = () => {
+          scenes[i].customImage = img;
+          scenes[i].customImageSrc = dataUrl;
+          renderSceneStrip();
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
   });
 }
 
-// ---------- STEP 3: VOICEOVER ----------
-$('toggleKeyVis').addEventListener('click', () => {
-  const input = $('elevenKey');
-  if (input.type === 'password') {
-    input.type = 'text';
-    $('toggleKeyVis').textContent = 'hide key';
-  } else {
-    input.type = 'password';
-    $('toggleKeyVis').textContent = 'show key';
+// ---------- AI IMAGE GENERATION (Puter.js) ----------
+const STOPWORDS = new Set(['the','a','an','is','it','its','was','were','been','has','have','had',
+  'that','this','these','those','for','and','or','but','of','to','in','on','at','by','with',
+  'about','as','if','than','then','so','some','any','all','no','not','nor','too','very','just',
+  'only','also','because','while','nobody','knows','exactly','why','refuses','means','true','feeds',
+  'smaller','swallowed','into','scientists','think','basically','keeps','churning']);
+
+function extractSubject(sentence) {
+  // Strip punctuation, split words, drop stopwords/short words, keep capitalized & longer words first
+  const cleaned = sentence.replace(/[.,!?;:'"]/g, '');
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const candidates = words.filter(w => {
+    const lw = w.toLowerCase();
+    return w.length > 3 && !STOPWORDS.has(lw);
+  });
+  const proper = candidates.filter(w => /^[A-Z]/.test(w));
+  const pool = proper.length >= 2 ? proper : candidates;
+  const term = pool.slice(0, 5).join(' ');
+  return term || 'deep space nebula';
+}
+
+function buildImagePrompt(sentence, styleDescriptor) {
+  const subject = extractSubject(sentence);
+  return `${subject}, ${styleDescriptor}, vertical 9:16 composition, no text, no watermark`;
+}
+
+function setFetchStatus(text, state) {
+  $('fetchStatus').style.display = 'flex';
+  $('fetchStatusText').textContent = text;
+  const dot = $('fetchStatus').querySelector('.status-dot');
+  dot.className = 'status-dot' + (state === 'live' ? ' live' : state === 'done' ? ' done' : '');
+}
+
+function imageElementToDataUrl(imgEl) {
+  return new Promise((resolve, reject) => {
+    // If Puter already gave us a data: URL, just reuse it directly
+    if (imgEl.src && imgEl.src.startsWith('data:')) {
+      resolve(imgEl.src);
+      return;
+    }
+    // Otherwise draw to an offscreen canvas to normalize into a data URL we can reuse for re-renders
+    try {
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = imgEl.naturalWidth || imgEl.width;
+      tmpCanvas.height = imgEl.naturalHeight || imgEl.height;
+      const tctx = tmpCanvas.getContext('2d');
+      tctx.drawImage(imgEl, 0, 0);
+      resolve(tmpCanvas.toDataURL('image/png'));
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+$('autoFetchBtn').addEventListener('click', async () => {
+  if (scenes.length === 0) { alert('Build scenes first.'); return; }
+  if (typeof puter === 'undefined') {
+    alert('Puter.js failed to load — check your internet connection and try again.');
+    return;
   }
+  $('autoFetchBtn').disabled = true;
+  const styleDescriptor = $('imageStyleSelect').value;
+  let successCount = 0;
+
+  for (let i = 0; i < scenes.length; i++) {
+    const prompt = buildImagePrompt(scenes[i].text, styleDescriptor);
+    setFetchStatus(`Scene ${i+1}/${scenes.length}: generating AI image…`, 'live');
+    try {
+      const imgEl = await puter.ai.txt2img(prompt, { model: 'gemini-2.5-flash-image-preview' });
+      const dataUrl = await imageElementToDataUrl(imgEl);
+      const finalImg = new Image();
+      await new Promise((resolve, reject) => {
+        finalImg.onload = resolve;
+        finalImg.onerror = reject;
+        finalImg.src = dataUrl;
+      });
+      scenes[i].customImage = finalImg;
+      scenes[i].customImageSrc = dataUrl;
+      successCount++;
+      renderSceneStrip();
+    } catch (err) {
+      console.warn('AI image generation failed for scene', i, prompt, err);
+      setFetchStatus(`Scene ${i+1}/${scenes.length}: generation failed, keeping default art`, 'live');
+    }
+  }
+
+  setFetchStatus(`Done — generated ${successCount}/${scenes.length} AI images. Scenes that failed kept their procedural backdrop.`, 'done');
+  $('autoFetchBtn').disabled = false;
 });
+
+
+// ---------- STEP 3: VOICEOVER (Browser TTS) ----------
+let availableVoices = [];
+let speechTimingData = null; // {voiceName, rate, pitch} once voice timing has been generated, else null
+
+function loadVoices() {
+  return new Promise((resolve) => {
+    let voices = speechSynthesis.getVoices();
+    if (voices.length > 0) { resolve(voices); return; }
+    speechSynthesis.onvoiceschanged = () => {
+      resolve(speechSynthesis.getVoices());
+    };
+    // Fallback timeout in case onvoiceschanged never fires
+    setTimeout(() => resolve(speechSynthesis.getVoices()), 1500);
+  });
+}
+
+async function populateVoiceList() {
+  availableVoices = await loadVoices();
+  const select = $('voiceSelect');
+  select.innerHTML = '';
+  if (availableVoices.length === 0) {
+    select.innerHTML = '<option value="">No voices found — text-only mode available</option>';
+    return;
+  }
+  // Prefer English voices first, but show all
+  const sorted = [...availableVoices].sort((a, b) => {
+    const aEn = a.lang.startsWith('en') ? 0 : 1;
+    const bEn = b.lang.startsWith('en') ? 0 : 1;
+    return aEn - bEn;
+  });
+  sorted.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})${v.default ? ' — default' : ''}`;
+    select.appendChild(opt);
+  });
+}
+populateVoiceList();
 
 function setVoiceStatus(text, state) {
   $('voiceStatus').style.display = 'flex';
@@ -527,86 +687,144 @@ function setVoiceStatus(text, state) {
   dot.className = 'status-dot' + (state === 'live' ? ' live' : state === 'done' ? ' done' : '');
 }
 
-async function fetchElevenLabsAudio(text, voiceId, apiKey) {
-  const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'xi-api-key': apiKey,
-      'Accept': 'audio/mpeg',
-    },
-    body: JSON.stringify({
-      text: text,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.45, similarity_boost: 0.8 },
-    }),
-  });
-  if (!resp.ok) {
-    const errText = await resp.text().catch(() => '');
-    throw new Error(`ElevenLabs error ${resp.status}: ${errText.slice(0,200)}`);
-  }
-  return await resp.arrayBuffer();
+function getSelectedVoice() {
+  const name = $('voiceSelect').value;
+  return availableVoices.find(v => v.name === name) || null;
 }
 
-function getAudioDurationFromBuffer(arrayBuffer) {
-  return new Promise((resolve, reject) => {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    audioCtx.decodeAudioData(arrayBuffer.slice(0), (decoded) => {
-      resolve(decoded.duration);
-      audioCtx.close();
-    }, (err) => { reject(err); audioCtx.close(); });
+function speakScene(text, voice, rate, pitch) {
+  return new Promise((resolve) => {
+    const utter = new SpeechSynthesisUtterance(text);
+    if (voice) utter.voice = voice;
+    utter.rate = rate;
+    utter.pitch = pitch;
+    const startedAt = performance.now();
+    utter.onend = () => {
+      resolve((performance.now() - startedAt) / 1000);
+    };
+    utter.onerror = () => resolve((performance.now() - startedAt) / 1000);
+    speechSynthesis.speak(utter);
   });
 }
+
+$('testVoiceBtn').addEventListener('click', () => {
+  speechSynthesis.cancel();
+  const voice = getSelectedVoice();
+  const rate = parseFloat($('rateSlider').value);
+  const pitch = parseFloat($('pitchSlider').value);
+  const utter = new SpeechSynthesisUtterance('This is a quick test of the selected voice for your space facts short.');
+  if (voice) utter.voice = voice;
+  utter.rate = rate;
+  utter.pitch = pitch;
+  speechSynthesis.speak(utter);
+});
 
 $('generateVoiceBtn').addEventListener('click', async () => {
-  const apiKey = $('elevenKey').value.trim();
-  if (!apiKey) { alert('Enter your ElevenLabs API key first.'); return; }
   if (scenes.length === 0) { alert('Build scenes first.'); return; }
+  speechSynthesis.cancel();
 
-  const customId = $('customVoiceId').value.trim();
-  const voiceId = customId || $('voiceSelect').value;
+  const voice = getSelectedVoice();
+  const rate = parseFloat($('rateSlider').value);
+  const pitch = parseFloat($('pitchSlider').value);
 
   $('generateVoiceBtn').disabled = true;
-  setVoiceStatus('Starting voiceover generation…', 'live');
+  setVoiceStatus('Timing voiceover against device speech engine…', 'live');
 
   try {
     for (let i = 0; i < scenes.length; i++) {
-      setVoiceStatus(`Generating scene ${i+1} / ${scenes.length}…`, 'live');
-      const buf = await fetchElevenLabsAudio(scenes[i].text, voiceId, apiKey);
-      audioBuffers[i] = buf;
-      try {
-        const dur = await getAudioDurationFromBuffer(buf);
-        audioDurations[i] = dur;
-        scenes[i].durationSec = dur;
-      } catch (e) {
-        console.warn('Could not decode duration for scene', i, e);
-      }
+      setVoiceStatus(`Timing scene ${i+1} / ${scenes.length}…`, 'live');
+      const dur = await speakScene(scenes[i].text, voice, rate, pitch);
+      audioDurations[i] = Math.max(1.2, dur);
+      scenes[i].durationSec = audioDurations[i];
     }
-    setVoiceStatus('Voiceover ready for all scenes.', 'done');
+    audioBuffers = new Array(scenes.length).fill(null); // no captured buffer; voice plays live at render time
+    speechTimingData = { voiceName: voice ? voice.name : null, rate, pitch };
+    setVoiceStatus('Voiceover timed for all scenes. Live voice will play during render.', 'done');
     renderSceneStrip();
   } catch (err) {
     console.error(err);
     setVoiceStatus('Failed: ' + err.message, '');
-    alert('Voiceover generation failed. Check your API key and ElevenLabs account credits.\n\n' + err.message);
+    alert('Voiceover timing failed: ' + err.message);
   } finally {
     $('generateVoiceBtn').disabled = false;
   }
 });
 
 $('skipVoiceBtn').addEventListener('click', () => {
+  speechSynthesis.cancel();
   audioBuffers = new Array(scenes.length).fill(null);
+  speechTimingData = null;
   setVoiceStatus('Skipping voice — using estimated timing, captions only.', 'done');
 });
 
+
+
 // ---------- CANVAS SCENE PAINTER ----------
+function drawCustomImageBackground(ctx, w, h, scene, scale, panX, panY) {
+  const img = scene.customImage;
+  ctx.save();
+
+  // fill black first in case image has transparency or doesn't fully cover
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.translate(w/2 + panX, h/2 + panY);
+  ctx.scale(scale, scale);
+  ctx.translate(-w/2, -h/2);
+
+  // cover-fit: scale image to fill canvas, cropping overflow, centered
+  const imgRatio = img.width / img.height;
+  const canvasRatio = w / h;
+  let drawW, drawH, dx, dy;
+  if (imgRatio > canvasRatio) {
+    drawH = h;
+    drawW = h * imgRatio;
+    dx = (w - drawW) / 2;
+    dy = 0;
+  } else {
+    drawW = w;
+    drawH = w / imgRatio;
+    dx = 0;
+    dy = (h - drawH) / 2;
+  }
+  ctx.drawImage(img, dx, dy, drawW, drawH);
+  ctx.restore();
+
+  // subtle dark gradient at top/bottom so captions and any UI stay legible
+  const topGrad = ctx.createLinearGradient(0, 0, 0, h * 0.25);
+  topGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
+  topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, w, h * 0.25);
+
+  // vignette + bottom darkening for caption legibility (not affected by zoom)
+  const vGrad = ctx.createRadialGradient(w/2, h/2, h*0.3, w/2, h/2, h*0.75);
+  vGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  vGrad.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = vGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  const bottomGrad = ctx.createLinearGradient(0, h * 0.62, 0, h);
+  bottomGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  bottomGrad.addColorStop(1, 'rgba(0,0,0,0.65)');
+  ctx.fillStyle = bottomGrad;
+  ctx.fillRect(0, h * 0.62, w, h * 0.38);
+}
+
 function drawSceneBackground(ctx, w, h, scene, progress) {
-  const pal = PALETTES[scene.paletteIdx];
   const rand = seededRandom(scene.seed);
 
   // Ken Burns: scale from 1.0 -> 1.12 over the scene duration, slight pan
   const scale = 1.0 + 0.12 * progress;
   const panX = (rand() - 0.5) * 60 * progress;
   const panY = (rand() - 0.5) * 40 * progress;
+
+  if (scene.customImage) {
+    drawCustomImageBackground(ctx, w, h, scene, scale, panX, panY);
+    return;
+  }
+
+  const pal = PALETTES[scene.paletteIdx];
 
   ctx.save();
   ctx.translate(w/2 + panX, h/2 + panY);
@@ -787,114 +1005,76 @@ function setRenderStatus(text, state) {
   $('renderDot').className = 'status-dot' + (state === 'live' ? ' live' : state === 'done' ? ' done' : '');
 }
 
-async function decodeAllAudio(audioCtx) {
-  const decoded = [];
-  for (let i = 0; i < audioBuffers.length; i++) {
-    if (audioBuffers[i]) {
-      try {
-        const d = await audioCtx.decodeAudioData(audioBuffers[i].slice(0));
-        decoded.push(d);
-      } catch (e) {
-        console.warn('decode fail scene', i, e);
-        decoded.push(null);
-      }
-    } else {
-      decoded.push(null);
-    }
-  }
-  return decoded;
-}
-
 $('renderBtn').addEventListener('click', async () => {
   if (scenes.length === 0) { alert('Build scenes first.'); return; }
   if (isRendering) return;
   isRendering = true;
   if (previewAnim) cancelAnimationFrame(previewAnim);
+  speechSynthesis.cancel();
 
   $('renderBtn').disabled = true;
   $('downloadArea').innerHTML = '';
-  setRenderStatus('Preparing audio…', 'live');
   $('progressFill').style.width = '0%';
 
   const canvas = $('stage');
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
 
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const decodedScenes = await decodeAllAudio(audioCtx);
+  const hasVoice = !!speechTimingData;
+  const voice = hasVoice ? availableVoices.find(v => v.name === speechTimingData.voiceName) : null;
 
-  // Build a single combined audio buffer (concat scenes with their real durations)
-  const sampleRate = audioCtx.sampleRate;
   const totalDur = audioDurations.reduce((a,b) => a+b, 0);
-  const totalSamples = Math.ceil(totalDur * sampleRate);
-  const combined = audioCtx.createBuffer(2, totalSamples, sampleRate);
-
-  let offsetSample = 0;
-  for (let i = 0; i < scenes.length; i++) {
-    const dec = decodedScenes[i];
-    const sceneSamples = Math.ceil(audioDurations[i] * sampleRate);
-    if (dec) {
-      for (let ch = 0; ch < 2; ch++) {
-        const srcCh = dec.numberOfChannels > ch ? dec.getChannelData(ch) : dec.getChannelData(0);
-        const dstCh = combined.getChannelData(ch);
-        for (let s = 0; s < sceneSamples; s++) {
-          dstCh[offsetSample + s] = srcCh[s] || 0;
-        }
-      }
-    }
-    offsetSample += sceneSamples;
-  }
-
-  // MediaStream destination so MediaRecorder can capture audio
-  const dest = audioCtx.createMediaStreamDestination();
-  const bufferSource = audioCtx.createBufferSource();
-  bufferSource.buffer = combined;
-  bufferSource.connect(dest);
-  bufferSource.connect(audioCtx.destination); // also hear it live (optional, muted via gain could be added)
 
   const videoStream = canvas.captureStream(30);
-  const combinedStream = new MediaStream([
-    ...videoStream.getVideoTracks(),
-    ...dest.stream.getAudioTracks(),
-  ]);
+  let mimeType = 'video/webm;codecs=vp9';
+  if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+  if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
 
-  let mimeType = 'video/webm;codecs=vp9,opus';
-  if (!MediaRecorder.isTypeSupported(mimeType)) {
-    mimeType = 'video/webm;codecs=vp8,opus';
-  }
-  if (!MediaRecorder.isTypeSupported(mimeType)) {
-    mimeType = 'video/webm';
-  }
-
-  const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 6_000_000 });
+  const recorder = new MediaRecorder(videoStream, { mimeType, videoBitsPerSecond: 6_000_000 });
   const chunks = [];
   recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+  const finished = new Promise((resolve) => { recorder.onstop = () => resolve(); });
 
-  const finished = new Promise((resolve) => {
-    recorder.onstop = () => resolve();
-  });
-
-  setRenderStatus('Recording…', 'live');
+  setRenderStatus(hasVoice ? 'Recording — voice will play out loud as it renders…' : 'Recording (silent, captions only)…', 'live');
   recorder.start();
-  bufferSource.start();
 
   const renderStart = performance.now();
+  let sceneIdx = 0;
+  let sceneStartTime = renderStart;
+  let speakingPromise = hasVoice ? speakSceneNow(scenes[0], voice) : Promise.resolve();
+
+  function speakSceneNow(scene, v) {
+    return new Promise((resolve) => {
+      const utter = new SpeechSynthesisUtterance(scene.text);
+      if (v) utter.voice = v;
+      utter.rate = speechTimingData.rate;
+      utter.pitch = speechTimingData.pitch;
+      utter.onend = resolve;
+      utter.onerror = resolve;
+      speechSynthesis.speak(utter);
+    });
+  }
 
   function frame() {
     const elapsed = (performance.now() - renderStart) / 1000;
     if (elapsed >= totalDur) {
       drawFinalFrame();
+      speechSynthesis.cancel();
       recorder.stop();
       return;
     }
-    let acc = 0, sceneIdx = 0;
+    let acc = 0, idx = 0;
     for (let i = 0; i < scenes.length; i++) {
-      if (elapsed < acc + audioDurations[i]) { sceneIdx = i; break; }
+      if (elapsed < acc + audioDurations[i]) { idx = i; break; }
       acc += audioDurations[i];
     }
-    const scene = scenes[sceneIdx];
+    if (idx !== sceneIdx) {
+      sceneIdx = idx;
+      if (hasVoice) speakSceneNow(scenes[sceneIdx], voice);
+    }
+    const scene = scenes[idx];
     const sceneT = elapsed - acc;
-    const sceneProgress = Math.min(1, sceneT / audioDurations[sceneIdx]);
+    const sceneProgress = Math.min(1, sceneT / audioDurations[idx]);
 
     drawSceneBackground(ctx, w, h, scene, sceneProgress);
     drawCaption(ctx, w, h, scene, sceneProgress);
@@ -921,13 +1101,16 @@ $('renderBtn').addEventListener('click', async () => {
   const url = URL.createObjectURL(blob);
   const sizeMB = (blob.size / (1024*1024)).toFixed(1);
 
-  setRenderStatus(`Render complete — ${sizeMB} MB`, 'done');
-  $('downloadArea').innerHTML = `<a class="download-link" href="${url}" download="fortify-orbit-short.webm">Download Video (.webm)</a>`;
+  setRenderStatus(`Render complete — ${sizeMB} MB (video only, no audio track)`, 'done');
+  $('downloadArea').innerHTML = `
+    <a class="download-link" href="${url}" download="fortify-orbit-short.webm">Download Video (.webm)</a>
+    <div class="hint" style="margin-top:10px;">⚠️ Browsers can't capture system text-to-speech into a recorded file, so this download is <strong>silent video with captions</strong> — the voice you heard played live but isn't baked into the file. To get voice + captions together: open this in CapCut/iMovie and either (1) use their built-in TTS/auto-voiceover feature, or (2) screen-record your phone while tapping Render here, which does capture system audio.</div>
+  `;
 
   $('renderBtn').disabled = false;
   isRendering = false;
-  audioCtx.close();
 });
+
 </script>
 </body>
 </html>
