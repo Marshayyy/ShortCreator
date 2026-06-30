@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BRAINROT EDITOR</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --void: #0A0A0A;
+  --pink: #FF2D78;
+  --yellow: #FFE600;
+  --dirty: #F0EDE8;
+  --panel: #111111;
+  --line: #222222;
+  --muted: #555555;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--void);
+  color: var(--dirty);
+  font-family: 'Space Mono', monospace;
+  overflow-x: hidden;
+}
+
+/* ---- HEADER ---- */
+header {
+  padding: 16px 20px;
+  border-bottom: 2px solid var(--pink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--void);
+  z-index: 100;
+}
+.logo {
+  font-family: 'Anton', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--dirty);
+}
+.logo span { color: var(--pink); }
+.logo sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  display: block;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-top: -2px;
+}
+.status-pill {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 100px;
+  background: var(--line);
+  color: var(--muted);
+}
+.status-pill.active { background: var(--pink); color: #fff; }
+
+/* ---- MAIN LAYOUT ---- */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: calc(100vh - 57px);
+}
+
+/* ---- LEFT: MAIN WORK AREA ---- */
+.main { padding: 24px 20px; border-right: 1px solid var(--line); }
+
+.step { margin-bottom: 32px; }
+
+.step-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--pink);
+  margin-bottom: 10px;
+}
+
+.url-row {
+  display: flex;
+  gap: 10px;
+}
+.url-input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--dirty);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color .15s;
+}
+.url-input:focus { border-color: var(--pink); }
+.url-input::placeholder { color: var(--muted); }
+
+.btn {
+  font-family: 'Anton', sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform .1s, opacity .15s;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-pink { background: var(--pink); color: #fff; }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--dirty); font-family: 'Space Mono', monospace; font-size: 12px; }
+.btn-ghost:hover { border-color: var(--muted); }
+
+/* ---- VIDEO EMBED ---- */
+.video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  display: none;
+}
+.video-wrap iframe { width: 100%; height: 100%; border: none; }
+.video-overlay-demo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.demo-popup {
+  position: absolute;
+  font-family: 'Anton', sans-serif;
+  text-transform: uppercase;
+  font-size: 28px;
+  color: #fff;
+  text-shadow:
+    3px 3px 0 #000,
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000;
+  animation: popIn 0.2s cubic-bezier(.17,.67,.25,1.6) both;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.demo-popup.sfx {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: var(--yellow);
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+  text-transform: none;
+  font-style: italic;
+}
+@keyframes popIn {
+  from { transform: scale(0.4) rotate(-5deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ---- TRANSCRIPT BOX ---- */
+.transcript-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #aaa;
+  max-height: 120px;
+  overflow-y: auto;
+  display: none;
+  margin-bottom: 16px;
+}
+.transcript-box::-webkit-scrollbar { width: 4px; }
+.transcript-box::-webkit-scrollbar-thumb { background: var(--line); }
+
+/* ---- LOADING STATE ---- */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 0;
+}
+.dot-spin {
+  width: 12px; height: 12px;
+  border: 2px solid var(--line);
+  border-top-color: var(--pink);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+
+/* ---- TIMELINE ---- */
+#timeline { display: none; }
+
+.tl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.tl-count {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.overlay-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 8px;
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  transition: border-color .15s;
+}
+.overlay-card:hover { border-color: var(--pink); }
+.overlay-card.type-sfx { border-left: 3px solid var(--yellow); }
+.overlay-card.type-meme { border-left: 3px solid var(--pink); }
+.overlay-card.type-reaction { border-left: 3px solid #A259FF; }
+
+.card-time {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+  padding-top: 2px;
+}
+.card-time b {
+  display: block;
+  font-size: 13px;
+  color: var(--dirty);
+  font-weight: 700;
+}
+
+.card-body { flex: 1; }
+.card-text {
+  font-family: 'Anton', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.card-text.sfx-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: var(--yellow);
+  font-style: italic;
+}
+.card-tag {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.tag-meme { background: rgba(255,45,120,0.2); color: var(--pink); }
+.tag-sfx { background: rgba(255,230,0,0.15); color: var(--yellow); }
+.tag-reaction { background: rgba(162,89,255,0.2); color: #A259FF; }
+
+.card-actions { display: flex; flex-direction: column; gap: 6px; }
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+}
+.icon-btn:hover { border-color: var(--muted); color: var(--dirty); }
+.del-btn:hover { border-color: var(--pink); color: var(--pink); }
+
+.add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+/* ---- EXPORT SECTION ---- */
+#exportSection { display: none; margin-top: 32px; }
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.export-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.export-box h3 {
+  font-family: 'Anton', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.export-box p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+/* ---- RIGHT PANEL: PHONE PREVIEW ---- */
+.sidebar { padding: 20px 16px; background: var(--panel); }
+.sidebar-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.phone-frame {
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+  display: block;
+}
+.phone-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9/16;
+  background: #000;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 2px solid #333;
+}
+#phoneCanvas { width: 100%; height: 100%; display: block; }
+.phone-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.preview-stat {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.6;
+}
+.preview-stat b { color: var(--dirty); }
+
+/* ---- EDIT MODAL ---- */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  display: none;
+}
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px;
+  width: 90%;
+  max-width: 420px;
+}
+.modal h3 {
+  font-family: 'Anton', sans-serif;
+  font-size: 18px;
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+}
+.modal label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 6px; }
+.modal input, .modal select {
+  width: 100%;
+  background: #0A0A0A;
+  border: 1px solid var(--line);
+  color: var(--dirty);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  outline: none;
+  margin-bottom: 14px;
+}
+.modal-btns { display: flex; gap: 10px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    BRAIN<span>ROT</span>
+    <sub>EDITOR v1</sub>
+  </div>
+  <div class="status-pill" id="statusPill">waiting for link</div>
+</header>
+
+<div class="layout">
+  <div class="main">
+
+    <!-- STEP 1: URL -->
+    <div class="step">
+      <div class="step-label">01 — paste your youtube link</div>
+      <div class="url-row">
+        <input class="url-input" id="urlInput" type="text" placeholder="https://youtube.com/watch?v=...">
+        <button class="btn btn-pink" id="btnLoad">LOAD</button>
+      </div>
+    </div>
+
+    <!-- VIDEO EMBED -->
+    <div class="video-wrap" id="videoWrap">
+      <iframe id="ytEmbed" allowfullscreen></iframe>
+      <div class="video-overlay-demo" id="overlayDemo"></div>
+    </div>
+
+    <!-- TRANSCRIPT -->
+    <div id="transcriptWrap" class="hidden">
+      <div class="step-label">02 — transcript fetched</div>
+      <div class="transcript-box" id="transcriptBox"></div>
+      <div id="loadingOverlays" class="loading hidden">
+        <div class="dot-spin"></div>
+        <span id="loadingText">Generating brain rot overlays...</span>
+      </div>
+      <button class="btn btn-yellow" id="btnGenOverlays" style="width:100%;">GENERATE OVERLAYS</button>
+    </div>
+
+    <!-- TIMELINE -->
+    <div id="timeline">
+      <div class="step-label" style="margin-top:28px;">03 — overlay timeline</div>
+      <div class="tl-header">
+        <div class="tl-count" id="tlCount"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" id="btnRegenOverlays">↺ Regenerate</button>
+        </div>
+      </div>
+      <div id="cardList"></div>
+      <div class="add-row">
+        <button class="btn btn-ghost" onclick="openAddModal('meme')">+ MEME TEXT</button>
+        <button class="btn btn-ghost" onclick="openAddModal('sfx')">+ SFX LABEL</button>
+        <button class="btn btn-ghost" onclick="openAddModal('reaction')">+ REACTION</button>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div id="exportSection">
+      <div class="step-label">04 — export</div>
+      <div class="export-grid">
+        <div class="export-box">
+          <h3>SRT FILE</h3>
+          <p>Import into CapCut, Premiere, or DaVinci as a subtitle track. All your overlays as timed captions.</p>
+          <button class="btn btn-pink" onclick="exportSRT()" style="width:100%;">DOWNLOAD .SRT</button>
+        </div>
+        <div class="export-box">
+          <h3>CAPCUT JSON</h3>
+          <p>Structured overlay data with position, style, and timing. Paste into your CapCut project script.</p>
+          <button class="btn btn-yellow" onclick="exportJSON()" style="width:100%;color:#000;">DOWNLOAD JSON</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SIDEBAR: PHONE PREVIEW -->
+  <div class="sidebar">
+    <div class="sidebar-label">live preview</div>
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <canvas id="phoneCanvas" width="540" height="960"></canvas>
+      </div>
+    </div>
+    <div class="phone-controls">
+      <button class="btn btn-ghost" id="btnPreviewPlay" style="font-size:11px;">▶ PREVIEW</button>
+      <button class="btn btn-ghost" id="btnPreviewStop" style="font-size:11px;">■ STOP</button>
+    </div>
+    <div class="preview-stat" id="previewStat">
+      <b>0</b> overlays<br>
+      <b>0s</b> duration
+    </div>
+  </div>
+</div>
+
+<!-- EDIT / ADD MODAL -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">ADD OVERLAY</h3>
+    <label>Text</label>
+    <input type="text" id="modalText" placeholder="BRO WHAT 💀">
+    <label>Type</label>
+    <select id="modalType">
+      <option value="meme">MEME TEXT</option>
+      <option value="sfx">SFX LABEL</option>
+      <option value="reaction">REACTION</option>
+    </select>
+    <label>Start time (seconds)</label>
+    <input type="number" id="modalStart" placeholder="e.g. 4.5" step="0.5" min="0">
+    <label>Duration (seconds)</label>
+    <input type="number" id="modalDuration" value="2" step="0.5" min="0.5">
+    <label>Position</label>
+    <select id="modalPos">
+      <option value="top-left">Top left</option>
+      <option value="top-center">Top center</option>
+      <option value="top-right">Top right</option>
+      <option value="center">Center</option>
+      <option value="bottom-left">Bottom left</option>
+      <option value="bottom-center" selected>Bottom center</option>
+      <option value="bottom-right">Bottom right</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn btn-pink" style="flex:1;" id="modalSave">SAVE</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ STATE ============ */
+const S = {
+  videoId: null,
+  transcript: '',
+  videoDuration: 60,
+  overlays: [],   // {id, type, text, start, duration, position}
+  editingId: null,
+  previewPlaying: false,
+  previewRaf: null,
+  previewStartTime: null,
+  previewElapsed: 0
+};
+
+let nextId = 1;
+function uid(){ return nextId++; }
+
+/* ============ YOUTUBE URL PARSING ============ */
+function extractVideoId(url){
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
+  ];
+  for(const p of patterns){
+    const m = url.match(p);
+    if(m) return m[1];
+  }
+  return null;
+}
+
+document.getElementById('btnLoad').addEventListener('click', loadVideo);
+document.getElementById('urlInput').addEventListener('keydown', e=>{ if(e.key==='Enter') loadVideo(); });
+
+function loadVideo(){
+  const url = document.getElementById('urlInput').value.trim();
+  const id = extractVideoId(url);
+  if(!id){ alert('Paste a valid YouTube URL.'); return; }
+
+  S.videoId = id;
+  const embed = document.getElementById('ytEmbed');
+  embed.src = `https://www.youtube.com/embed/${id}?enablejsapi=1`;
+  document.getElementById('videoWrap').style.display = 'block';
+  setStatus('video loaded', true);
+
+  // fetch transcript via unofficial API
+  fetchTranscript(id);
+}
+
+async function fetchTranscript(videoId){
+  const wrap = document.getElementById('transcriptWrap');
+  const box = document.getElementById('transcriptBox');
+  wrap.classList.remove('hidden');
+  box.style.display = 'block';
+  box.textContent = 'Fetching transcript...';
+
+  // Try multiple transcript proxy APIs in sequence
+  const proxies = [
+    () => fetchViaYoutubeTranscriptProxy(videoId),
+    () => fetchViaSupabase(videoId),
+  ];
+
+  let text = '';
+  for(const fn of proxies){
+    try{
+      text = await fn();
+      if(text && text.trim().length > 20) break;
+    }catch(e){ /* try next */ }
+  }
+
+  if(text && text.trim().length > 20){
+    S.transcript = text.trim().slice(0, 3000);
+    box.textContent = S.transcript;
+    setStatus('transcript ready', true);
+    document.getElementById('btnGenOverlays').disabled = false;
+  } else {
+    // Clean manual paste fallback
+    showManualPaste(box);
+  }
+}
+
+async function fetchViaYoutubeTranscriptProxy(videoId){
+  // youtranscript.com is a simple public proxy
+  const res = await fetch(`https://youtranscript.vercel.app/api/transcript?videoId=${videoId}`, {signal: AbortSignal.timeout(6000)});
+  if(!res.ok) throw new Error('status '+res.status);
+  const data = await res.json();
+  if(!data || !Array.isArray(data)) throw new Error('bad response');
+  if(data.length > 0){
+    const last = data[data.length-1];
+    S.videoDuration = Math.ceil((last.offset||last.start||60) + (last.dur||last.duration||3));
+  }
+  return data.map(e => e.text || e.transcript || '').join(' ');
+}
+
+async function fetchViaSupabase(videoId){
+  // downsub-style public endpoint
+  const res = await fetch(`https://yt-transcript-api.vercel.app/transcript?id=${videoId}`, {signal: AbortSignal.timeout(6000)});
+  if(!res.ok) throw new Error('status '+res.status);
+  const data = await res.json();
+  if(!data || !data.transcript) throw new Error('no transcript key');
+  const entries = Array.isArray(data.transcript) ? data.transcript : [];
+  if(entries.length > 0){
+    const last = entries[entries.length-1];
+    S.videoDuration = Math.ceil((last.offset||last.start||60) + (last.dur||last.duration||3));
+  }
+  return entries.map(e => e.text||'').join(' ');
+}
+
+function showManualPaste(box){
+  box.innerHTML = '';
+  box.contentEditable = 'true';
+  box.style.outline = 'none';
+  box.style.minHeight = '100px';
+  box.style.color = 'var(--dirty)';
+  box.dataset.placeholder = '1';
+
+  // Show placeholder hint
+  const hint = document.createElement('div');
+  hint.style.cssText = 'color:var(--muted);font-size:11px;margin-bottom:8px;pointer-events:none;';
+  hint.textContent = "Auto-fetch unavailable on iOS. Paste the video's transcript or description below, then hit Generate Overlays.";
+  box.parentNode.insertBefore(hint, box);
+
+  box.addEventListener('input', ()=>{
+    S.transcript = box.textContent.trim();
+  });
+  // Also accept paste events
+  box.addEventListener('paste', ()=>{
+    setTimeout(()=>{ S.transcript = box.textContent.trim(); }, 50);
+  });
+
+  setStatus('paste transcript', true);
+  document.getElementById('btnGenOverlays').disabled = false;
+}
+
+/* ============ OVERLAY GENERATION ============ */
+document.getElementById('btnGenOverlays').addEventListener('click', generateOverlays);
+document.getElementById('btnRegenOverlays').addEventListener('click', generateOverlays);
+
+async function generateOverlays(){
+  if(!S.transcript || S.transcript.trim().length < 10){
+    alert("Paste the video transcript first — the box above needs some text before generating overlays.");
+    return;
+  }
+
+  const loadEl = document.getElementById('loadingOverlays');
+  const loadText = document.getElementById('loadingText');
+  const genBtn = document.getElementById('btnGenOverlays');
+  loadEl.classList.remove('hidden');
+  genBtn.disabled = true;
+  loadText.textContent = 'AI cooking up brain rot...';
+  setStatus('generating...', true);
+
+  const transcriptSnippet = S.transcript.trim().slice(0,2500);
+
+  const prompt = `You are writing brain rot meme overlays for a YouTube Shorts edit. These are timed text popups that appear over the video — the kind you see in viral "brain rot" content: chaos energy, meme language, reaction text, ironic sound effect labels.
+
+Video transcript (partial): "${transcriptSnippet}"
+
+Estimated video duration: ${S.videoDuration} seconds (create overlays spread across this duration).
+
+Generate 12-18 overlay events. Mix these three types:
+- "meme": big impact font reaction text (e.g. "BRO WHAT 💀", "NO WAY FR FR", "THIS IS INSANE", "WAIT WAIT WAIT", "POV: you just realized", "ACTUALLY COOKED 🔥")
+- "sfx": italic sound effect labels (e.g. "*vine boom*", "*brainrot.mp3*", "*to be continued...*", "*ohio music*", "*dramatic music*", "*air horn*")
+- "reaction": single emoji or short outburst (e.g. "💀💀💀", "🗣️🗣️", "bro 💀", "NO 😭", "SHEESH", "W 🔥")
+
+Spread them through the video with gaps of 2-6 seconds between events. Vary positions.
+
+Return ONLY valid JSON array, no markdown:
+[
+  {
+    "type": "meme|sfx|reaction",
+    "text": "overlay text here",
+    "start": 2.5,
+    "duration": 2.0,
+    "position": "top-left|top-center|top-right|center|bottom-left|bottom-center|bottom-right"
+  }
+]
+
+Make it chaotic, funny, and viral. Use emojis. Match the energy to what's being said in the transcript.`;
+
+  try{
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens:2000,
+        messages:[{role:"user", content:prompt}]
+      })
+    });
+    const data = await res.json();
+    let text = data.content.map(b=>b.text||'').join('\n');
+    text = text.replace(/```json|```/g,'').trim();
+    const overlays = JSON.parse(text);
+    S.overlays = overlays.map(o=>({...o, id:uid()}));
+    renderTimeline();
+    setStatus(`${S.overlays.length} overlays ready`, true);
+    updatePreviewStat();
+  }catch(e){
+    alert('Generation failed: '+e.message);
+    setStatus('error', false);
+  }finally{
+    loadEl.classList.add('hidden');
+    genBtn.disabled = false;
+  }
+}
+
+/* ============ TIMELINE RENDERING ============ */
+function renderTimeline(){
+  const tl = document.getElementById('timeline');
+  tl.style.display = 'block';
+  document.getElementById('exportSection').style.display = 'block';
+
+  const list = document.getElementById('cardList');
+  list.innerHTML = '';
+
+  const sorted = [...S.overlays].sort((a,b)=>a.start-b.start);
+
+  document.getElementById('tlCount').textContent = `${sorted.length} overlays · ${S.videoDuration}s video`;
+
+  sorted.forEach(ov=>{
+    const card = document.createElement('div');
+    card.className = `overlay-card type-${ov.type}`;
+    card.dataset.id = ov.id;
+
+    const tagClass = `tag-${ov.type}`;
+    const textClass = ov.type==='sfx' ? 'sfx-text' : '';
+    const startStr = formatTime(ov.start);
+    const endStr = formatTime(ov.start + ov.duration);
+
+    card.innerHTML = `
+      <div class="card-time">
+        <b>${startStr}</b>
+        → ${endStr}
+      </div>
+      <div class="card-body">
+        <div class="card-text ${textClass}">${escHtml(ov.text)}</div>
+        <span class="card-tag ${tagClass}">${ov.type}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:6px;">${ov.position}</span>
+      </div>
+      <div class="card-actions">
+        <button class="icon-btn" onclick="editOverlay(${ov.id})">edit</button>
+        <button class="icon-btn del-btn" onclick="deleteOverlay(${ov.id})">del</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  drawPhoneFrame(-1); // draw empty frame
+}
+
+function formatTime(s){
+  const m = Math.floor(s/60);
+  const sec = (s%60).toFixed(1).padStart(4,'0');
+  return m>0 ? `${m}:${sec}` : `${sec}s`;
+}
+
+function escHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+/* ============ DELETE / EDIT ============ */
+function deleteOverlay(id){
+  S.overlays = S.overlays.filter(o=>o.id!==id);
+  renderTimeline();
+  updatePreviewStat();
+}
+
+function editOverlay(id){
+  const ov = S.overlays.find(o=>o.id===id);
+  if(!ov) return;
+  S.editingId = id;
+  document.getElementById('modalTitle').textContent = 'EDIT OVERLAY';
+  document.getElementById('modalText').value = ov.text;
+  document.getElementById('modalType').value = ov.type;
+  document.getElementById('modalStart').value = ov.start;
+  document.getElementById('modalDuration').value = ov.duration;
+  document.getElementById('modalPos').value = ov.position;
+  document.getElementById('modalBg').style.display = 'flex';
+}
+
+function openAddModal(type){
+  S.editingId = null;
+  document.getElementById('modalTitle').textContent = 'ADD OVERLAY';
+  document.getElementById('modalText').value = '';
+  document.getElementById('modalType').value = type;
+  document.getElementById('modalStart').value = '';
+  document.getElementById('modalDuration').value = '2';
+  document.getElementById('modalPos').value = 'bottom-center';
+  document.getElementById('modalBg').style.display = 'flex';
+}
+
+function closeModal(){
+  document.getElementById('modalBg').style.display = 'none';
+}
+
+document.getElementById('modalSave').addEventListener('click', ()=>{
+  const text = document.getElementById('modalText').value.trim();
+  const type = document.getElementById('modalType').value;
+  const start = parseFloat(document.getElementById('modalStart').value)||0;
+  const duration = parseFloat(document.getElementById('modalDuration').value)||2;
+  const position = document.getElementById('modalPos').value;
+  if(!text){ alert('Add some text.'); return; }
+
+  if(S.editingId){
+    const ov = S.overlays.find(o=>o.id===S.editingId);
+    if(ov){ Object.assign(ov, {text,type,start,duration,position}); }
+  }else{
+    S.overlays.push({id:uid(),text,type,start,duration,position});
+  }
+  closeModal();
+  renderTimeline();
+  updatePreviewStat();
+});
+
+document.getElementById('modalBg').addEventListener('click', e=>{
+  if(e.target===document.getElementById('modalBg')) closeModal();
+});
+
+/* ============ PHONE CANVAS PREVIEW ============ */
+const phoneCanvas = document.getElementById('phoneCanvas');
+const pCtx = phoneCanvas.getContext('2d');
+const PW = phoneCanvas.width, PH = phoneCanvas.height;
+
+const POSITIONS = {
+  'top-left':    [PW*0.05, PH*0.08],
+  'top-center':  [PW*0.5,  PH*0.08],
+  'top-right':   [PW*0.95, PH*0.08],
+  'center':      [PW*0.5,  PH*0.5],
+  'bottom-left': [PW*0.05, PH*0.82],
+  'bottom-center':[PW*0.5, PH*0.82],
+  'bottom-right':[PW*0.95, PH*0.82],
+};
+const ALIGN = {
+  'top-left':'left','top-center':'center','top-right':'right',
+  'center':'center',
+  'bottom-left':'left','bottom-center':'center','bottom-right':'right'
+};
+
+function drawPhoneFrame(currentTime){
+  pCtx.fillStyle = '#0a0a0a';
+  pCtx.fillRect(0,0,PW,PH);
+
+  // faint grid lines for atmosphere
+  pCtx.strokeStyle = 'rgba(255,255,255,0.03)';
+  pCtx.lineWidth = 1;
+  for(let y=0;y<PH;y+=40){ pCtx.beginPath();pCtx.moveTo(0,y);pCtx.lineTo(PW,y);pCtx.stroke(); }
+
+  if(currentTime < 0) return;
+
+  const active = S.overlays.filter(o=> currentTime >= o.start && currentTime < o.start+o.duration);
+
+  active.forEach(ov=>{
+    const [x,y] = POSITIONS[ov.position] || [PW/2, PH/2];
+    const align = ALIGN[ov.position] || 'center';
+    pCtx.textAlign = align;
+    pCtx.textBaseline = 'middle';
+
+    if(ov.type==='sfx'){
+      pCtx.font = `italic 700 28px "Space Mono", monospace`;
+      pCtx.fillStyle = '#FFE600';
+      pCtx.strokeStyle = '#000';
+      pCtx.lineWidth = 4;
+      pCtx.strokeText(ov.text, x, y);
+      pCtx.fillText(ov.text, x, y);
+    } else {
+      const sz = ov.type==='reaction' ? 44 : 52;
+      pCtx.font = `900 ${sz}px Arial Black, Arial, sans-serif`;
+      pCtx.fillStyle = '#fff';
+      pCtx.strokeStyle = '#000';
+      pCtx.lineWidth = 8;
+      pCtx.strokeText(ov.text, x, y);
+      pCtx.fillText(ov.text, x, y);
+    }
+  });
+}
+
+/* ============ PREVIEW PLAYBACK ============ */
+document.getElementById('btnPreviewPlay').addEventListener('click', startPreview);
+document.getElementById('btnPreviewStop').addEventListener('click', stopPreview);
+
+function startPreview(){
+  if(S.previewPlaying) stopPreview();
+  S.previewPlaying = true;
+  S.previewElapsed = 0;
+  const start = performance.now();
+
+  function tick(){
+    if(!S.previewPlaying) return;
+    const elapsed = (performance.now()-start)/1000;
+    S.previewElapsed = elapsed;
+    drawPhoneFrame(elapsed);
+    if(elapsed < S.videoDuration){
+      S.previewRaf = requestAnimationFrame(tick);
+    }else{
+      stopPreview();
+    }
+  }
+  S.previewRaf = requestAnimationFrame(tick);
+}
+
+function stopPreview(){
+  S.previewPlaying = false;
+  if(S.previewRaf) cancelAnimationFrame(S.previewRaf);
+  drawPhoneFrame(-1);
+}
+
+function updatePreviewStat(){
+  const total = S.overlays.length;
+  document.getElementById('previewStat').innerHTML =
+    `<b>${total}</b> overlays<br><b>${S.videoDuration}s</b> duration`;
+}
+
+/* ============ EXPORT ============ */
+function exportSRT(){
+  if(!S.overlays.length){ alert('No overlays yet.'); return; }
+  const sorted = [...S.overlays].sort((a,b)=>a.start-b.start);
+
+  let srt = '';
+  sorted.forEach((ov,i)=>{
+    const s = ov.start, e = s+ov.duration;
+    srt += `${i+1}\n`;
+    srt += `${toSRTTime(s)} --> ${toSRTTime(e)}\n`;
+    srt += `${ov.text}\n\n`;
+  });
+
+  download(srt, `brainrot-${Date.now()}.srt`, 'text/plain');
+}
+
+function toSRTTime(s){
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = Math.floor(s%60);
+  const ms = Math.round((s%1)*1000);
+  return `${pad(h)}:${pad(m)}:${pad(sec)},${padMs(ms)}`;
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function padMs(n){ return String(n).padStart(3,'0'); }
+
+function exportJSON(){
+  if(!S.overlays.length){ alert('No overlays yet.'); return; }
+  const sorted = [...S.overlays].sort((a,b)=>a.start-b.start);
+
+  const capcut = {
+    version: "1.0",
+    tool: "brainrot-editor",
+    video_duration: S.videoDuration,
+    overlays: sorted.map(ov=>({
+      text: ov.text,
+      type: ov.type,
+      start_ms: Math.round(ov.start*1000),
+      end_ms: Math.round((ov.start+ov.duration)*1000),
+      position: ov.position,
+      style: ov.type==='sfx'
+        ? { font:'monospace', size:28, color:'#FFE600', italic:true }
+        : { font:'impact', size:ov.type==='reaction'?44:52, color:'#FFFFFF', stroke:'#000000' }
+    }))
+  };
+  download(JSON.stringify(capcut,null,2), `brainrot-${Date.now()}.json`, 'application/json');
+}
+
+function download(content, filename, type){
+  const blob = new Blob([content],{type});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* ============ UTILS ============ */
+function setStatus(text, active){
+  const pill = document.getElementById('statusPill');
+  pill.textContent = text;
+  pill.className = 'status-pill' + (active?' active':'');
+}
+</script>
+</body>
+</html>
